@@ -16,7 +16,7 @@ use constant ONE_KEY_FATAL    => 'fatal';
 use constant ONE_KEY_CONSTANT => 'constant';
 use constant ONE_KEY_UNDEF    => 'undef';
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 sub new
    {
@@ -205,18 +205,18 @@ Tie::Hash::Interpolate - tied mathematical interpolation/extrapolation
    $lut{3} = 4;
    $lut{5} = 6;
 
-   print $lut{4};  ## prints 5
-   print $lut{6};  ## prints 7
+   print $lut{4};    ## prints 5
+   print $lut{6.5};  ## prints 7.5
 
    ## or constructor interface
 
-   my $lut = Tie::Hash::Interpolate->( extrapolate => 'linear' );
+   my $lut = Tie::Hash::Interpolate->new( extrapolate => 'linear' );
 
    $lut->{3} = 4;
    $lut->{5} = 6;
 
-   print $lut->{4};  ## prints 5
-   print $lut->{6};  ## prints 7
+   print $lut->{4};    ## prints 5
+   print $lut->{6.5};  ## prints 7.5
 
 =head1 DESCRIPTION
 
@@ -241,7 +241,7 @@ given, or directly to C<new()> as key-value pairs.
 
    ## or
 
-   my $lut = Tie::Hash::Interpolate->( one_key => 'constant' );
+   my $lut = Tie::Hash::Interpolate->new( one_key => 'constant' );
 
 =head2 C<extrapolate>
 
@@ -293,7 +293,7 @@ return C<undef>
 
 =over 4
 
-=item - support multiple dimenstions
+=item - support multiple dimensions
 
 =item - support autovivification of tied hashes
 
