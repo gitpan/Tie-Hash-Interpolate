@@ -1,21 +1,17 @@
 Revision history for Perl extension Tie::Hash::Interpolate.
 
+0.04  Sun Feb 22 2004
+   - consider hashes with 1 key as constants
+   - added C<new()> constructor for object-like instantiation
+   - added C<one_key> option to control fetch behavior when the hash has only one key
+
 0.03  Sun Feb  8 2004
-   ----------------------------
-   revision 1.6
-   date: 2004/02/08 14:12:49;  author: danboo;  state: Exp;  lines: +36 -14
-   - added support for "extrapolate" option
+   - added support for C<extrapolate> option
 
 
 0.02  Sat Feb  7 2004
-   ----------------------------
-   revision 1.4
-   date: 2004/02/08 02:26:00;  author: danboo;  state: Exp;  lines: +8 -5
    - fix example in SYNOPSIS
-   ----------------------------
-   revision 1.3
-   date: 2004/02/07 19:55:37;  author: danboo;  state: Exp;  lines: +53 -14
-   - only sort keys when we FETCH afer keys have been modified
+   - only sort keys when we C<FETCH()> afer keys have been modified
 
 
 0.01  Thu Feb  5 2004

@@ -12,15 +12,30 @@ use constant EX_CONSTANT => 'constant';
 use constant EX_FATAL    => 'fatal';
 use constant EX_UNDEF    => 'undef';
 
-our $VERSION = '0.03';
+use constant ONE_KEY_FATAL    => 'fatal';
+use constant ONE_KEY_CONSTANT => 'constant';
+use constant ONE_KEY_UNDEF    => 'undef';
 
-#sub new
-#   {
-#   my ($class) = @_;
-#   my $tied = {};
-#   tie %{$tied}, $class;
-#   return $tied;
-#   }
+our $VERSION = '0.04';
+
+sub new
+   {
+   my ($class, %opts) = @_;
+   my $tied = {};
+   tie %{$tied}, $class, %opts;
+   return $tied;
+   }
+
+sub TIEHASH
+   {
+   my ($class, %opts) = (shift, extrapolate => EX_LINEAR, one_key => ONE_KEY_FATAL, @_);
+   croak "invalid value for 'extrapolate' option ($opts{'extrapolate'})"
+      unless grep $_ eq $opts{'extrapolate'}, EX_LINEAR, EX_UNDEF, EX_FATAL, EX_CONSTANT;
+   croak "invalid value for 'one_key' option ($opts{'one_key'})"
+      unless grep $_ eq $opts{'one_key'}, ONE_KEY_UNDEF, ONE_KEY_FATAL, ONE_KEY_CONSTANT;
+   my $self = { _DATA => {}, _KEYS => [], _SORT => 1, _OPTS => \%opts };
+   bless $self, $class;
+   }
 
 sub FIRSTKEY
    {
@@ -50,15 +65,6 @@ sub CLEAR
    ## force a re-sort on next fetch
    $_[0]->{'_SORT'} = 1;
    %{$_[0]->{'_DATA'}} = ();
-   }
-
-sub TIEHASH
-   {
-   my ($class, %opts) = (shift, extrapolate => EX_LINEAR, @_);
-   croak "invalid value for 'extrapolate' option ($opts{'extrapolate'})"
-      unless grep $_ eq $opts{'extrapolate'}, EX_LINEAR, EX_UNDEF, EX_FATAL, EX_CONSTANT;
-   my $self = { _DATA => {}, _KEYS => [], _SORT => 1, _OPTS => \%opts };
-   bless $self, $class;
    }
 
 sub STORE
@@ -101,10 +107,24 @@ sub FETCH
 
    my @keys = @{ $self->{'_KEYS'} };
 
-   ## be sure we have at least 2 keys
+   ## be sure we have at least 1 key
    croak "cannot interpolate/extrapolate with less than two keys"
-      if @keys < 2;
+      if @keys < 1;
 
+   ## return constant if only 1 key
+   if (@keys == 1)
+      {
+
+      ## determine whether we should die, return undef, or extrapolate
+      my $one_key_opt = $self->{'_OPTS'}{'one_key'};
+
+      $one_key_opt eq ONE_KEY_FATAL ? croak "cannot extrapolate with only one key" :
+      $one_key_opt eq ONE_KEY_UNDEF ? return undef : ();
+
+      return $self->{'_DATA'}{$keys[0]};
+      }
+
+   ## begin interpolation/extrapolation search
    my ($lower, $upper);
 
    ## key is below range of known keys
@@ -178,6 +198,8 @@ Tie::Hash::Interpolate - tied mathematical interpolation/extrapolation
 
    use Tie::Hash::Interpolate;
 
+   ## use tie interface
+
    tie my %lut, 'Tie::Hash::Interpolate', extrapolate => 'linear';
 
    $lut{3} = 4;
@@ -186,23 +208,42 @@ Tie::Hash::Interpolate - tied mathematical interpolation/extrapolation
    print $lut{4};  ## prints 5
    print $lut{6};  ## prints 7
 
+   ## or constructor interface
+
+   my $lut = Tie::Hash::Interpolate->( extrapolate => 'linear' );
+
+   $lut->{3} = 4;
+   $lut->{5} = 6;
+
+   print $lut->{4};  ## prints 5
+   print $lut->{6};  ## prints 7
+
 =head1 DESCRIPTION
 
 C<Tie::Hash::Interpolate> provides a mechanism for using a hash as a lookup
 table for interpolated and extrapolated values.
 
-After your hash is tied, insert your known key-value pairs. If you then fetch a
-value that is not a key, an interpolation or extrapolation will be performed as
-necessary.
+Hashes can either be tied using the C<tie> builtin or by constructing one with
+the C<new()> method.
+
+After your hash is tied (NOTE: key-value pairs added prior to the tie will be
+ignored), insert your known key-value pairs. If you then fetch a key that does
+not exist, an interpolation or extrapolation will be performed as necessary. If
+you fetch a key that does exist, the value stored for that key will be
+returned.
 
 =head1 OPTIONS
 
 Options can be passed to C<tie> after the C<Tie::Hash::Interpolate> name is
-given. They are passed as key-value pairs. The supported options are:
-
-=head2 C<extrapolate>
+given, or directly to C<new()> as key-value pairs.
 
    tie my %lut, 'Tie::Hash::Interpolate', extrapolate => 'fatal';
+
+   ## or
+
+   my $lut = Tie::Hash::Interpolate->( one_key => 'constant' );
+
+=head2 C<extrapolate>
 
 This option controls the behavior of the tied hash when a key is requested
 outside the range of known keys. Valid C<extrapolate> values include:
@@ -220,6 +261,27 @@ keep the nearest value constant rather than extrapolating
 =item * C<fatal>
 
 throw a fatal exception
+
+=item * C<undef>
+
+return C<undef>
+
+=back
+
+=head2 C<one_key>
+
+This option controls the behavior of the tied hash when a key is requested and
+only one key exists in the hash. Valid C<one_key> values include:
+
+=over 4
+
+=item * C<fatal> (I<default>)
+
+throw a fatal exception
+
+=item * C<constant>
+
+all fetches return the one value that exists
 
 =item * C<undef>
 

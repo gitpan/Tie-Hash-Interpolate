@@ -4,7 +4,10 @@ use Test::More 'no_plan';
 
 BEGIN { use_ok('Tie::Hash::Interpolate') }
 
-tie my %lut, 'Tie::Hash::Interpolate';
+tie my %lut, 'Tie::Hash::Interpolate', one_key => 'constant';
+
+eval { undef = $lut{2} };
+ok($@, "too few keys");
 
 ## fetch-store non-numbers
 
@@ -24,10 +27,10 @@ ok(1, "STORE number key-value");
 
 is($lut{1}, 2, "FETCH number key");
 
-## interpolation tests
+## constant tests
 
-eval { undef = $lut{2} };
-ok($@, "too few keys");
+is($lut{1.5}, 2, "extrapolate constant 1.5");
+is($lut{0.5}, 2, "extrapolate constant 0.5");
 
 $lut{3} = 4;
 
@@ -115,4 +118,42 @@ ok(!$@, 'opts: extrapolate => "undef"');
 is($lut2{3}, undef, 'opts: extrapolate => "undef", 3 -> undef');
 is($lut2{5}, 6, 'opts: extrapolate => "undef", 5 -> 6');
 is($lut2{7}, undef, 'opts: extrapolate => "undef", 7 -> undef');
+
+## test constructor
+
+my $lut = Tie::Hash::Interpolate->new(one_key => 'constant');
+
+eval { undef = $lut->{2} };
+ok($@, "too few keys");
+
+## fetch-store non-numbers
+
+eval { $lut->{foo} = 1 };
+ok($@, "STORE non-number key");
+
+eval { $lut->{1} = 'bar' };
+ok($@, "STORE non-number value");
+
+eval { my $foo = $lut->{'foo'} };
+ok($@, "FETCH non-number key");
+
+## fetch-store numbers
+
+$lut->{1} = 2;
+ok(1, "STORE number key-value");
+
+is($lut->{1}, 2, "FETCH number key");
+
+## constant tests
+
+is($lut->{1.5}, 2, "extrapolate constant 1.5");
+is($lut->{0.5}, 2, "extrapolate constant 0.5");
+
+$lut->{3} = 4;
+
+is($lut->{2}, 3,  "interpolate 2 -> 3");
+is($lut->{0}, 1,  "extrapolate 0 -> 1");
+is($lut->{-0}, 1, "extrapolate -0 -> 1");
+is($lut->{-1}, 0, "extrapolate -1 -> 0");
+is($lut->{4}, 5,  "extrapolate 4 -> 5");
 
