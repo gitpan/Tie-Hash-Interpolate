@@ -7,26 +7,51 @@ use warnings;
 use Carp;
 use Scalar::Util qw/ looks_like_number blessed /;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 #sub new
 #   {
 #   my ($class) = @_;
-#   my $self = {};
-#   tie %{$self}, $class;
-#   return $self;
+#   my $tied = {};
+#   tie %{$tied}, $class;
+#   return $tied;
 #   }
 
-sub FIRSTKEY { my $a = scalar keys %{$_[0]}; each %{$_[0]} }
-sub NEXTKEY  { each %{$_[0]} }
-sub EXISTS   { exists $_[0]->{$_[1]} }
-sub DELETE   { delete $_[0]->{$_[1]} }
-sub CLEAR    { %{$_[0]} = () }
+sub FIRSTKEY
+   {
+   my $a = scalar keys %{$_[0]->{'_DATA'}};
+   return each %{$_[0]->{'_DATA'}};
+   }
+
+sub NEXTKEY
+   {
+   return each %{$_[0]->{'_DATA'}};
+   }
+
+sub EXISTS
+   {
+   return exists $_[0]->{'_DATA'}->{$_[1]};
+   }
+
+sub DELETE
+   {
+   ## force a re-sort on next fetch
+   $_[0]->{'_SORT'} = 1;
+   delete $_[0]->{'_DATA'}->{$_[1]};
+   }
+
+sub CLEAR
+   {
+   ## force a re-sort on next fetch
+   $_[0]->{'_SORT'} = 1;
+   %{$_[0]->{'_DATA'}} = ();
+   }
 
 sub TIEHASH
    {
    my ($class) = @_;
-   bless {}, $class;
+   my $self = { _DATA => {}, _KEYS => [], _SORT => 1 };
+   bless $self, $class;
    }
 
 sub STORE
@@ -44,7 +69,10 @@ sub STORE
    ## force key to number
    $key += 0;
 
-   $self->{$key} = $val;
+   ## force a re-sort on next fetch
+   $self->{'_SORT'} = 1;
+
+   $self->{'_DATA'}{$key} = $val;
 
    }
 
@@ -59,9 +87,12 @@ sub FETCH
    $key += 0;
 
    ## return right away for direct hits
-   return $self->{$key} if exists $self->{$key};
+   return $self->{'_DATA'}{$key} if exists $self->{'_DATA'}{$key};
 
-   my @keys = sort { $a <=> $b } keys %{ $self };
+   ## re-sort keys if necessary
+   _sort_keys($self) if $self->{'_SORT'};
+
+   my @keys = @{ $self->{'_KEYS'} };
 
    ## be sure we have at least 2 keys
    croak "cannot interpolate/extrapolate with less than two keys"
@@ -92,11 +123,20 @@ sub FETCH
 
       }
 
-   return _mx_plus_b($key, $lower, $upper, $self->{$lower},
-      $self->{$upper});
+   return _mx_plus_b($key, $lower, $upper, $self->{'_DATA'}{$lower},
+      $self->{'_DATA'}{$upper});
 
    }
 
+## sort keys and reset flag
+sub _sort_keys
+   {
+   my ($self) = @_;
+   $self->{'_KEYS'} = [ sort { $a <=> $b } keys %{ $self->{'_DATA'} } ];
+   $self->{'_SORT'} = 0;
+   }
+
+## basic equation for a line given 2 points
 sub _mx_plus_b
    {
    my ($x, $x1, $x2, $y1, $y2) = @_;
@@ -120,7 +160,7 @@ Tie::Hash::Interpolate - tied mathematical interpolation/extrapolation
    $lut{3} = 4;
    $lut{5} = 6;
 
-   print $lut{4};  ## prints 4
+   print $lut{4};  ## prints 5
    print $lut{6};  ## prints 7
 
 =head1 DESCRIPTION
@@ -136,12 +176,16 @@ necessary.
 
 =over 4
 
-=item - support autovivification of tied hashes for interpolation in multiple
-        dimenstions
+=item - support multiple dimenstions
 
-=item - set a package-wide mode for insertion or lookup
+=item - support autovivification of tied hashes
+
+=item - set a per-instance mode for insertion or lookup
 
 =item - set up options to control extrapolation (fatal, constant, simple)
+
+=item - be smarter (proximity based direction) about searching when doing
+        interpolation
 
 =back
 
