@@ -1,6 +1,13 @@
 Revision history for Perl extension Tie::Hash::Interpolate.
 
-0.02  Thu Feb  7 2004
+0.03  Sun Feb  8 2004
+   ----------------------------
+   revision 1.6
+   date: 2004/02/08 14:12:49;  author: danboo;  state: Exp;  lines: +36 -14
+   - added support for "extrapolate" option
+
+
+0.02  Sat Feb  7 2004
    ----------------------------
    revision 1.4
    date: 2004/02/08 02:26:00;  author: danboo;  state: Exp;  lines: +8 -5

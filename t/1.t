@@ -71,3 +71,48 @@ $lut{1} = 1;
 
 is($lut{0}, 2,  "extrapolate 0 -> 2");
 is($lut{3}, -1,  "extrapolate 3 -> -1");
+
+## option passing
+
+my %lut2;
+
+eval { tie %lut2, 'Tie::Hash::Interpolate', foo => 1 };
+ok(!$@, 'opts: foo => 1');
+
+eval { tie %lut2, 'Tie::Hash::Interpolate', extrapolate => 'foo' };
+ok($@, 'opts: extrapolate => "foo"');
+
+eval { tie %lut2, 'Tie::Hash::Interpolate', extrapolate => 'linear' };
+ok(!$@, 'opts: extrapolate => "linear"');
+
+%lut2 = ( 4 => 5, 6 => 7 );
+is($lut2{3}, 4, 'opts: extrapolate => "linear", 3 -> 4');
+is($lut2{5}, 6, 'opts: extrapolate => "linear", 5 -> 6');
+is($lut2{7}, 8, 'opts: extrapolate => "linear", 7 -> 8');
+
+eval { tie %lut2, 'Tie::Hash::Interpolate', extrapolate => 'fatal' };
+ok(!$@, 'opts: extrapolate => "fatal"');
+
+%lut2 = ( 4 => 5, 6 => 7 );
+eval { my $foo = $lut2{3} };
+ok($@, 'opts: extrapolate => "fatal", 3 -> croak');
+is($lut2{5}, 6, 'opts: extrapolate => "fatal", 5 -> 6');
+eval { my $foo = $lut2{7} };
+ok($@, 'opts: extrapolate => "fatal", 7 -> croak');
+
+eval { tie %lut2, 'Tie::Hash::Interpolate', extrapolate => 'constant' };
+ok(!$@, 'opts: extrapolate => "constant"');
+
+%lut2 = ( 4 => 5, 6 => 7 );
+is($lut2{3}, 5, 'opts: extrapolate => "constant", 3 -> 5');
+is($lut2{5}, 6, 'opts: extrapolate => "constant", 5 -> 6');
+is($lut2{7}, 7, 'opts: extrapolate => "constant", 7 -> 7');
+
+eval { tie %lut2, 'Tie::Hash::Interpolate', extrapolate => 'undef' };
+ok(!$@, 'opts: extrapolate => "undef"');
+
+%lut2 = ( 4 => 5, 6 => 7 );
+is($lut2{3}, undef, 'opts: extrapolate => "undef", 3 -> undef');
+is($lut2{5}, 6, 'opts: extrapolate => "undef", 5 -> 6');
+is($lut2{7}, undef, 'opts: extrapolate => "undef", 7 -> undef');
+

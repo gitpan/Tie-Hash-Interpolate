@@ -7,7 +7,12 @@ use warnings;
 use Carp;
 use Scalar::Util qw/ looks_like_number blessed /;
 
-our $VERSION = '0.02';
+use constant EX_LINEAR   => 'linear';
+use constant EX_CONSTANT => 'constant';
+use constant EX_FATAL    => 'fatal';
+use constant EX_UNDEF    => 'undef';
+
+our $VERSION = '0.03';
 
 #sub new
 #   {
@@ -49,8 +54,10 @@ sub CLEAR
 
 sub TIEHASH
    {
-   my ($class) = @_;
-   my $self = { _DATA => {}, _KEYS => [], _SORT => 1 };
+   my ($class, %opts) = (shift, extrapolate => EX_LINEAR, @_);
+   croak "invalid value for 'extrapolate' option ($opts{'extrapolate'})"
+      unless grep $_ eq $opts{'extrapolate'}, EX_LINEAR, EX_UNDEF, EX_FATAL, EX_CONSTANT;
+   my $self = { _DATA => {}, _KEYS => [], _SORT => 1, _OPTS => \%opts };
    bless $self, $class;
    }
 
@@ -103,12 +110,28 @@ sub FETCH
    ## key is below range of known keys
    if ($key < $keys[0])
       {
+
+      my $extrap_opt = $self->{'_OPTS'}{'extrapolate'};
+
+      $extrap_opt eq EX_CONSTANT ? return $self->{'_DATA'}{$keys[0]} :
+      $extrap_opt eq EX_FATAL    ? croak "fatal extrapolation with key ($key)" :
+      $extrap_opt eq EX_UNDEF    ? return undef : ();
+
       ($lower, $upper) = @keys[0, 1];
+
       }
    ## key is above range of known keys
    elsif ($key > $keys[-1])
       {
+
+      my $extrap_opt = $self->{'_OPTS'}{'extrapolate'};
+
+      $extrap_opt eq EX_CONSTANT ? return $self->{'_DATA'}{$keys[-1]} :
+      $extrap_opt eq EX_FATAL    ? croak "fatal extrapolation with key ($key)" :
+      $extrap_opt eq EX_UNDEF    ? return undef : ();
+
       ($lower, $upper) = @keys[-2, -1];
+
       }
    ## key is within range of known keys
    else
@@ -155,7 +178,7 @@ Tie::Hash::Interpolate - tied mathematical interpolation/extrapolation
 
    use Tie::Hash::Interpolate;
 
-   tie my %lut, 'Tie::Hash::Interpolate';
+   tie my %lut, 'Tie::Hash::Interpolate', extrapolate => 'linear';
 
    $lut{3} = 4;
    $lut{5} = 6;
@@ -172,6 +195,38 @@ After your hash is tied, insert your known key-value pairs. If you then fetch a
 value that is not a key, an interpolation or extrapolation will be performed as
 necessary.
 
+=head1 OPTIONS
+
+Options can be passed to C<tie> after the C<Tie::Hash::Interpolate> name is
+given. They are passed as key-value pairs. The supported options are:
+
+=head2 C<extrapolate>
+
+   tie my %lut, 'Tie::Hash::Interpolate', extrapolate => 'fatal';
+
+This option controls the behavior of the tied hash when a key is requested
+outside the range of known keys. Valid C<extrapolate> values include:
+
+=over 4
+
+=item * C<linear> (I<default>)
+
+extrapolate linearly based on the two nearest points
+
+=item * C<constant>
+
+keep the nearest value constant rather than extrapolating
+
+=item * C<fatal>
+
+throw a fatal exception
+
+=item * C<undef>
+
+return C<undef>
+
+=back
+
 =head1 TO DO
 
 =over 4
@@ -181,8 +236,6 @@ necessary.
 =item - support autovivification of tied hashes
 
 =item - set a per-instance mode for insertion or lookup
-
-=item - set up options to control extrapolation (fatal, constant, simple)
 
 =item - be smarter (proximity based direction) about searching when doing
         interpolation
