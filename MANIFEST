@@ -1,7 +1,8 @@
+Build.PL
 Changes
-Interpolate.pm
-Makefile.PL
 MANIFEST
+Makefile.PL
 README
-t/1.t
-META.yml                                 Module meta-data (added by MakeMaker)
+lib/Tie/Hash/Interpolate.pm
+t/01-basic.t
+META.yml
